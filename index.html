@@ -21,8 +21,9 @@ canvas.height = window.innerHeight;
 
 let groundHeight = 100;
 
-// 🔊 SOUND
+// 🔊 SOUND SYSTEM
 let soundsStarted = false;
+
 const flapSound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
 const scoreSound = new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
 const hitSound = new Audio("https://actions.google.com/sounds/v1/cartoon/concussive_hit_guitar_boing.ogg");
@@ -43,7 +44,7 @@ function play(sound) {
   sound.play().catch(()=>{});
 }
 
-// 🐤 BIRD
+// Bird
 let bird = {
   x: 80,
   y: canvas.height / 2,
@@ -57,24 +58,24 @@ let bird = {
 let pipes = [];
 let frame = 0;
 let score = 0;
+let highScore = localStorage.getItem("highScore") || 0;
 let gameState = "start";
 
-// 🏆 LOCAL LEADERBOARD
-let leaderboard = JSON.parse(localStorage.getItem("leaderboard")) || [];
+let bgX = 0;
+let groundX = 0;
 
-// ☁️ CLOUDS
+// Clouds
 let clouds = [
   {x: 100, y: 100},
   {x: 300, y: 150},
   {x: 600, y: 80}
 ];
 
-// 🎨 DRAW
 function drawSky() {
-  let g = ctx.createLinearGradient(0,0,0,canvas.height);
-  g.addColorStop(0,"#70c5ce");
-  g.addColorStop(1,"#dff6ff");
-  ctx.fillStyle = g;
+  let gradient = ctx.createLinearGradient(0,0,0,canvas.height);
+  gradient.addColorStop(0, "#70c5ce");
+  gradient.addColorStop(1, "#dff6ff");
+  ctx.fillStyle = gradient;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
@@ -93,8 +94,16 @@ function drawClouds() {
 }
 
 function drawGround() {
+  groundX -= 3;
+  if (groundX <= -40) groundX = 0;
+
   ctx.fillStyle = "#ded895";
   ctx.fillRect(0, canvas.height-groundHeight, canvas.width, groundHeight);
+
+  ctx.fillStyle = "#c2b280";
+  for (let i = groundX; i < canvas.width; i += 40) {
+    ctx.fillRect(i, canvas.height-groundHeight, 20, 10);
+  }
 }
 
 function drawBird() {
@@ -111,133 +120,138 @@ function drawBird() {
   ctx.ellipse(-5, bird.flap, 12, 6, 0, 0, Math.PI*2);
   ctx.fill();
 
+  ctx.fillStyle = "white";
+  ctx.beginPath();
+  ctx.arc(5,-5,5,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = "black";
+  ctx.beginPath();
+  ctx.arc(6,-5,2,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = "orange";
+  ctx.beginPath();
+  ctx.moveTo(15,0);
+  ctx.lineTo(25,5);
+  ctx.lineTo(15,10);
+  ctx.fill();
+
   ctx.restore();
 }
 
 function drawPipes() {
-  pipes.forEach(p=>{
-    ctx.fillStyle="#2ecc71";
-    ctx.fillRect(p.x,0,p.width,p.top);
-    ctx.fillRect(p.x,p.bottom,p.width,canvas.height);
+  pipes.forEach(pipe => {
+    let grad = ctx.createLinearGradient(pipe.x,0,pipe.x+pipe.width,0);
+    grad.addColorStop(0, "#2ecc71");
+    grad.addColorStop(1, "#27ae60");
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(pipe.x,0,pipe.width,pipe.top);
+    ctx.fillRect(pipe.x,pipe.bottom,pipe.width,canvas.height);
+
+    ctx.fillStyle = "#145a32";
+    ctx.fillRect(pipe.x-5, pipe.top-20, pipe.width+10, 20);
+    ctx.fillRect(pipe.x-5, pipe.bottom, pipe.width+10, 20);
   });
 }
 
-// ⚙️ GAME LOGIC
 function updatePipes() {
-  if(frame%100===0){
-    let top=Math.random()*200+50;
-    let gap=160;
+  if (frame % 100 === 0) {
+    let top = Math.random()*200+50;
+    let gap = 160;
 
     pipes.push({
-      x:canvas.width,
-      width:60,
-      top:top,
-      bottom:top+gap,
-      passed:false
+      x: canvas.width,
+      width: 60,
+      top: top,
+      bottom: top + gap,
+      passed: false
     });
   }
 
-  pipes.forEach(p=>{
-    p.x-=3;
+  pipes.forEach(pipe => {
+    pipe.x -= 3;
 
-    if(!p.passed && p.x+p.width<bird.x){
+    if (!pipe.passed && pipe.x + pipe.width < bird.x) {
       score++;
-      p.passed=true;
-      play(scoreSound);
+      pipe.passed = true;
+      play(scoreSound); // 🔊 score
     }
 
-    if(
-      bird.x+bird.size>p.x &&
-      bird.x-bird.size<p.x+p.width &&
-      (bird.y-bird.size<p.top || bird.y+bird.size>p.bottom)
-    ){
-      gameOver();
+    if (
+      bird.x + bird.size > pipe.x &&
+      bird.x - bird.size < pipe.x + pipe.width &&
+      (bird.y - bird.size < pipe.top ||
+       bird.y + bird.size > pipe.bottom)
+    ) {
+      gameState = "gameover";
+      play(hitSound); // 🔊 hit
     }
   });
 
-  pipes=pipes.filter(p=>p.x+p.width>0);
+  pipes = pipes.filter(p => p.x + p.width > 0);
 }
 
 function updateBird() {
-  bird.velocity+=bird.gravity;
-  bird.y+=bird.velocity;
-  bird.flap=Math.sin(frame*0.3)*8;
+  bird.velocity += bird.gravity;
+  bird.y += bird.velocity;
+  bird.flap = Math.sin(frame * 0.3) * 8;
 
-  if(bird.y+bird.size>canvas.height-groundHeight){
-    gameOver();
-  }
-}
-
-function drawText(t,s,y){
-  ctx.fillStyle="white";
-  ctx.font=s+"px Arial";
-  ctx.textAlign="center";
-  ctx.fillText(t, canvas.width/2, y);
-}
-
-// 💀 GAME OVER
-function gameOver(){
-  if(gameState!=="gameover"){
-    gameState="gameover";
+  if (bird.y + bird.size > canvas.height-groundHeight) {
+    gameState = "gameover";
     play(hitSound);
-
-    setTimeout(()=>{
-      let name=prompt("Enter your name:");
-      if(name){
-        leaderboard.push({name,score});
-        leaderboard.sort((a,b)=>b.score-a.score);
-        leaderboard=leaderboard.slice(0,5);
-        localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
-      }
-    },300);
   }
 }
 
-// 🎮 LOOP
-function gameLoop(){
+function drawText(text,size,y){
+  ctx.fillStyle="white";
+  ctx.font=size+"px Arial";
+  ctx.textAlign="center";
+  ctx.fillText(text, canvas.width/2, y);
+}
+
+function gameLoop() {
   drawSky();
   drawClouds();
   drawPipes();
   drawGround();
   drawBird();
 
-  if(gameState==="start"){
+  if (gameState==="start"){
     drawText("Tap to Start",40,canvas.height/2);
+    drawText("High Score: "+highScore,20,canvas.height/2+40);
   }
 
-  if(gameState==="playing"){
+  if (gameState==="playing"){
     updateBird();
     updatePipes();
     drawText("Score: "+score,20,40);
   }
 
-  if(gameState==="gameover"){
+  if (gameState==="gameover"){
+    if(score>highScore){
+      highScore=score;
+      localStorage.setItem("highScore",highScore);
+    }
+
     drawText("Game Over",40,canvas.height/2);
     drawText("Score: "+score,20,canvas.height/2+40);
-
-    let y=canvas.height/2+100;
-    leaderboard.forEach((s,i)=>{
-      drawText(`${i+1}. ${s.name}: ${s.score}`,18,y);
-      y+=25;
-    });
-
-    drawText("Tap to Restart",20,y+20);
+    drawText("High Score: "+highScore,20,canvas.height/2+70);
+    drawText("Tap to Restart",20,canvas.height/2+110);
   }
 
   frame++;
   requestAnimationFrame(gameLoop);
 }
 
-// 🎮 INPUT
 function handleInput(){
-  startSounds();
+  startSounds(); // 🔥 unlock audio
 
-  if(gameState==="start"){
-    gameState="playing";
-  }
+  if(gameState==="start") gameState="playing";
   else if(gameState==="playing"){
-    bird.velocity=bird.lift;
-    play(flapSound);
+    bird.velocity = bird.lift;
+    play(flapSound); // 🔊 flap
   }
   else location.reload();
 }
