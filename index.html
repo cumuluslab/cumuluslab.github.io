@@ -2,69 +2,121 @@
 <html>
 <head>
   <title>Cumulus Lab - Flappy Bird</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       margin: 0;
-      background: #70c5ce;
-      text-align: center;
+      overflow: hidden;
       font-family: Arial;
+      background: #70c5ce;
     }
     canvas {
       display: block;
-      margin: auto;
-      background: #70c5ce;
-    }
-    h1 {
-      color: white;
     }
   </style>
 </head>
 <body>
 
-<h1>☁️ Cumulus Lab - Flappy Bird</h1>
-<canvas id="gameCanvas" width="400" height="600"></canvas>
+<canvas id="gameCanvas"></canvas>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// Full screen
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let groundHeight = 80;
+
+// Bird
 let bird = {
   x: 80,
-  y: 250,
-  radius: 12,
-  gravity: 0.5,
+  y: canvas.height / 2,
+  size: 20,
+  gravity: 0.4,
   lift: -8,
-  velocity: 0
+  velocity: 0,
+  flap: 0
 };
 
+// Game state
 let pipes = [];
 let frame = 0;
 let score = 0;
-let gameOver = false;
+let highScore = localStorage.getItem("highScore") || 0;
+let gameState = "start"; // start, playing, gameover
 
-function drawBird() {
-  ctx.beginPath();
-  ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
-  ctx.fillStyle = "yellow";
-  ctx.fill();
+// Background scroll
+let bgX = 0;
+
+// Draw sky (moving)
+function drawBackground() {
+  bgX -= 0.5;
+  if (bgX <= -canvas.width) bgX = 0;
+
+  ctx.fillStyle = "#70c5ce";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#aeefff";
+  for (let i = 0; i < 2; i++) {
+    ctx.fillRect(bgX + i * canvas.width, 0, canvas.width, canvas.height);
+  }
 }
 
+// Draw ground
+function drawGround() {
+  ctx.fillStyle = "#ded895";
+  ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+
+  ctx.fillStyle = "#c2b280";
+  for (let i = 0; i < canvas.width; i += 40) {
+    ctx.fillRect(i, canvas.height - groundHeight, 20, 10);
+  }
+}
+
+// Bird (flapping animation)
+function drawBird() {
+  ctx.save();
+  ctx.translate(bird.x, bird.y);
+
+  ctx.fillStyle = "yellow";
+  ctx.beginPath();
+  ctx.arc(0, 0, bird.size, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Wing animation
+  ctx.fillStyle = "orange";
+  ctx.beginPath();
+  ctx.ellipse(-5, bird.flap, 10, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// Pipes
 function drawPipes() {
-  ctx.fillStyle = "green";
   pipes.forEach(pipe => {
+    ctx.fillStyle = "#2ecc71";
     ctx.fillRect(pipe.x, 0, pipe.width, pipe.top);
     ctx.fillRect(pipe.x, pipe.bottom, pipe.width, canvas.height);
+
+    // pipe cap
+    ctx.fillStyle = "#27ae60";
+    ctx.fillRect(pipe.x - 5, pipe.top - 20, pipe.width + 10, 20);
+    ctx.fillRect(pipe.x - 5, pipe.bottom, pipe.width + 10, 20);
   });
 }
 
+// Update pipes
 function updatePipes() {
   if (frame % 100 === 0) {
-    let top = Math.random() * 250 + 50;
-    let gap = 140;
+    let top = Math.random() * 200 + 50;
+    let gap = 160;
 
     pipes.push({
       x: canvas.width,
-      width: 50,
+      width: 60,
       top: top,
       bottom: top + gap,
       passed: false
@@ -72,9 +124,8 @@ function updatePipes() {
   }
 
   pipes.forEach(pipe => {
-    pipe.x -= 2;
+    pipe.x -= 3;
 
-    // Score
     if (!pipe.passed && pipe.x + pipe.width < bird.x) {
       score++;
       pipe.passed = true;
@@ -82,68 +133,85 @@ function updatePipes() {
 
     // Collision
     if (
-      bird.x + bird.radius > pipe.x &&
-      bird.x - bird.radius < pipe.x + pipe.width &&
-      (bird.y - bird.radius < pipe.top ||
-       bird.y + bird.radius > pipe.bottom)
+      bird.x + bird.size > pipe.x &&
+      bird.x - bird.size < pipe.x + pipe.width &&
+      (bird.y - bird.size < pipe.top ||
+       bird.y + bird.size > pipe.bottom)
     ) {
-      gameOver = true;
+      gameState = "gameover";
     }
   });
 
   pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
 }
 
+// Update bird
 function updateBird() {
   bird.velocity += bird.gravity;
   bird.y += bird.velocity;
 
-  if (bird.y + bird.radius > canvas.height || bird.y - bird.radius < 0) {
-    gameOver = true;
+  bird.flap = Math.sin(frame * 0.3) * 8;
+
+  if (bird.y + bird.size > canvas.height - groundHeight) {
+    gameState = "gameover";
   }
 }
 
-function drawScore() {
+// UI
+function drawText(text, size, y) {
   ctx.fillStyle = "white";
-  ctx.font = "20px Arial";
-  ctx.fillText("Score: " + score, 10, 30);
+  ctx.font = size + "px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(text, canvas.width / 2, y);
 }
 
-function drawGameOver() {
-  ctx.fillStyle = "red";
-  ctx.font = "30px Arial";
-  ctx.fillText("Game Over", 120, 300);
-  ctx.font = "16px Arial";
-  ctx.fillText("Click to Restart", 135, 340);
-}
-
+// Game loop
 function gameLoop() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  drawBird();
+  drawBackground();
   drawPipes();
-  drawScore();
+  drawGround();
+  drawBird();
 
-  if (!gameOver) {
+  if (gameState === "start") {
+    drawText("Tap to Start", 40, canvas.height / 2);
+    drawText("High Score: " + highScore, 20, canvas.height / 2 + 40);
+  }
+
+  if (gameState === "playing") {
     updateBird();
     updatePipes();
-    frame++;
-    requestAnimationFrame(gameLoop);
-  } else {
-    drawGameOver();
+    drawText("Score: " + score, 20, 40);
   }
+
+  if (gameState === "gameover") {
+    if (score > highScore) {
+      highScore = score;
+      localStorage.setItem("highScore", highScore);
+    }
+
+    drawText("Game Over", 40, canvas.height / 2);
+    drawText("Score: " + score, 20, canvas.height / 2 + 40);
+    drawText("High Score: " + highScore, 20, canvas.height / 2 + 70);
+    drawText("Tap to Restart", 20, canvas.height / 2 + 110);
+  }
+
+  frame++;
+  requestAnimationFrame(gameLoop);
 }
 
-function flap() {
-  if (gameOver) {
-    location.reload();
-  } else {
+// Controls
+function handleInput() {
+  if (gameState === "start") {
+    gameState = "playing";
+  } else if (gameState === "playing") {
     bird.velocity = bird.lift;
+  } else if (gameState === "gameover") {
+    location.reload();
   }
 }
 
-document.addEventListener("keydown", flap);
-document.addEventListener("click", flap);
+document.addEventListener("click", handleInput);
+document.addEventListener("keydown", handleInput);
 
 gameLoop();
 </script>
