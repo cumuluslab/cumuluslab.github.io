@@ -1,39 +1,138 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Cumulus Lab</title>
+  <title>Cumulus Lab - Flappy Bird</title>
   <style>
     body {
-      background-color: #0f172a;
-      color: white;
-      font-family: Arial;
+      margin: 0;
+      overflow: hidden;
+      background: #70c5ce;
       text-align: center;
-      padding: 50px;
+      font-family: Arial;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: #70c5ce;
     }
     h1 {
-      font-size: 40px;
-    }
-    p {
-      font-size: 18px;
-      color: #94a3b8;
-    }
-    .box {
-      background: #1e293b;
-      padding: 20px;
-      margin-top: 30px;
-      border-radius: 10px;
+      color: white;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
 
-  <h1>☁️ Cumulus Lab</h1>
-  <p>Built by Aryan</p>
+<h1>☁️ Cumulus Lab - Flappy Bird</h1>
+<canvas id="gameCanvas" width="400" height="600"></canvas>
 
-  <div class="box">
-    <h2>🚀 My Projects</h2>
-    <p>Coming soon...</p>
-  </div>
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+let bird = {
+  x: 80,
+  y: 200,
+  radius: 12,
+  gravity: 0.6,
+  lift: -10,
+  velocity: 0
+};
+
+let pipes = [];
+let frame = 0;
+let score = 0;
+
+function drawBird() {
+  ctx.beginPath();
+  ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
+  ctx.fillStyle = "yellow";
+  ctx.fill();
+}
+
+function drawPipes() {
+  pipes.forEach(pipe => {
+    ctx.fillStyle = "green";
+    ctx.fillRect(pipe.x, 0, pipe.width, pipe.top);
+    ctx.fillRect(pipe.x, pipe.bottom, pipe.width, canvas.height);
+  });
+}
+
+function updatePipes() {
+  if (frame % 90 === 0) {
+    let top = Math.random() * 300 + 50;
+    let gap = 150;
+    pipes.push({
+      x: canvas.width,
+      width: 50,
+      top: top,
+      bottom: top + gap
+    });
+  }
+
+  pipes.forEach(pipe => {
+    pipe.x -= 2;
+
+    // collision
+    if (
+      bird.x + bird.radius > pipe.x &&
+      bird.x - bird.radius < pipe.x + pipe.width &&
+      (bird.y - bird.radius < pipe.top ||
+       bird.y + bird.radius > pipe.bottom)
+    ) {
+      alert("Game Over! Score: " + score);
+      document.location.reload();
+    }
+
+    // score
+    if (pipe.x === bird.x) {
+      score++;
+    }
+  });
+
+  pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
+}
+
+function updateBird() {
+  bird.velocity += bird.gravity;
+  bird.y += bird.velocity;
+
+  if (bird.y + bird.radius > canvas.height) {
+    alert("Game Over! Score: " + score);
+    document.location.reload();
+  }
+}
+
+function drawScore() {
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText("Score: " + score, 10, 25);
+}
+
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  drawBird();
+  drawPipes();
+  drawScore();
+
+  updateBird();
+  updatePipes();
+
+  frame++;
+  requestAnimationFrame(gameLoop);
+}
+
+document.addEventListener("keydown", () => {
+  bird.velocity = bird.lift;
+});
+
+document.addEventListener("click", () => {
+  bird.velocity = bird.lift;
+});
+
+gameLoop();
+</script>
 
 </body>
 </html>
