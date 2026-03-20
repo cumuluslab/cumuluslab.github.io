@@ -24,10 +24,10 @@ let groundHeight = 100;
 // 🔊 SOUND SYSTEM
 let soundsStarted = false;
 
-const flapSound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+const flapSound = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a73467.mp3");
 const scoreSound = new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
 const hitSound = new Audio("https://actions.google.com/sounds/v1/cartoon/concussive_hit_guitar_boing.ogg");
-const bgMusic = new Audio("https://actions.google.com/sounds/v1/ambiences/birds_in_forest.ogg");
+const bgMusic = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_115b9bce3b.mp3");
 
 bgMusic.loop = true;
 bgMusic.volume = 0.3;
@@ -44,7 +44,7 @@ function play(sound) {
   sound.play().catch(()=>{});
 }
 
-// Bird
+// 🐤 BIRD
 let bird = {
   x: 80,
   y: canvas.height / 2,
@@ -61,76 +61,92 @@ let score = 0;
 let highScore = localStorage.getItem("highScore") || 0;
 let gameState = "start";
 
-let bgX = 0;
 let groundX = 0;
 
-// Clouds
+// ☁️ CLOUDS
 let clouds = [
   {x: 100, y: 100},
   {x: 300, y: 150},
   {x: 600, y: 80}
 ];
 
+// 🎨 SKY
 function drawSky() {
-  let gradient = ctx.createLinearGradient(0,0,0,canvas.height);
-  gradient.addColorStop(0, "#70c5ce");
-  gradient.addColorStop(1, "#dff6ff");
-  ctx.fillStyle = gradient;
+  let g = ctx.createLinearGradient(0,0,0,canvas.height);
+  g.addColorStop(0,"#4facfe");
+  g.addColorStop(1,"#e0f7ff");
+  ctx.fillStyle = g;
   ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  let sun = ctx.createRadialGradient(80,80,20,80,80,100);
+  sun.addColorStop(0,"rgba(255,255,200,0.8)");
+  sun.addColorStop(1,"rgba(255,255,200,0)");
+  ctx.fillStyle = sun;
+  ctx.fillRect(0,0,200,200);
 }
 
+// ☁️ CLOUDS
 function drawClouds() {
-  ctx.fillStyle = "white";
+  ctx.fillStyle = "rgba(255,255,255,0.8)";
   clouds.forEach(c => {
     ctx.beginPath();
-    ctx.arc(c.x, c.y, 20, 0, Math.PI*2);
-    ctx.arc(c.x+20, c.y, 20, 0, Math.PI*2);
-    ctx.arc(c.x+10, c.y-15, 20, 0, Math.PI*2);
+    ctx.arc(c.x, c.y, 25, 0, Math.PI*2);
+    ctx.arc(c.x+25, c.y, 25, 0, Math.PI*2);
+    ctx.arc(c.x+12, c.y-18, 25, 0, Math.PI*2);
     ctx.fill();
 
-    c.x -= 0.5;
-    if (c.x < -50) c.x = canvas.width + 50;
+    c.x -= 0.4;
+    if (c.x < -60) c.x = canvas.width + 60;
   });
 }
 
+// 🌱 GROUND
 function drawGround() {
-  groundX -= 3;
+  groundX -= 2;
   if (groundX <= -40) groundX = 0;
 
-  ctx.fillStyle = "#ded895";
+  ctx.fillStyle = "#c2b280";
   ctx.fillRect(0, canvas.height-groundHeight, canvas.width, groundHeight);
 
-  ctx.fillStyle = "#c2b280";
+  ctx.fillStyle = "#8bc34a";
+  ctx.fillRect(0, canvas.height-groundHeight, canvas.width, 10);
+
+  ctx.fillStyle = "#a1887f";
   for (let i = groundX; i < canvas.width; i += 40) {
-    ctx.fillRect(i, canvas.height-groundHeight, 20, 10);
+    ctx.fillRect(i, canvas.height-groundHeight+10, 20, 8);
   }
 }
 
+// 🐤 BIRD
 function drawBird() {
   ctx.save();
   ctx.translate(bird.x, bird.y);
 
-  ctx.fillStyle = "yellow";
+  let grad = ctx.createRadialGradient(0,0,5,0,0,20);
+  grad.addColorStop(0,"#fff176");
+  grad.addColorStop(1,"#fbc02d");
+
+  ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(0,0,bird.size,0,Math.PI*2);
   ctx.fill();
 
-  ctx.fillStyle = "orange";
+  ctx.fillStyle = "#ff9800";
   ctx.beginPath();
   ctx.ellipse(-5, bird.flap, 12, 6, 0, 0, Math.PI*2);
   ctx.fill();
 
   ctx.fillStyle = "white";
   ctx.beginPath();
-  ctx.arc(5,-5,5,0,Math.PI*2);
+  ctx.arc(6,-5,5,0,Math.PI*2);
   ctx.fill();
 
   ctx.fillStyle = "black";
   ctx.beginPath();
-  ctx.arc(6,-5,2,0,Math.PI*2);
+  ctx.arc(7,-5,2,0,Math.PI*2);
   ctx.fill();
 
-  ctx.fillStyle = "orange";
+  ctx.fillStyle = "#ff5722";
   ctx.beginPath();
   ctx.moveTo(15,0);
   ctx.lineTo(25,5);
@@ -140,22 +156,24 @@ function drawBird() {
   ctx.restore();
 }
 
+// 🌿 PIPES
 function drawPipes() {
   pipes.forEach(pipe => {
     let grad = ctx.createLinearGradient(pipe.x,0,pipe.x+pipe.width,0);
-    grad.addColorStop(0, "#2ecc71");
-    grad.addColorStop(1, "#27ae60");
+    grad.addColorStop(0,"#66bb6a");
+    grad.addColorStop(1,"#2e7d32");
 
     ctx.fillStyle = grad;
     ctx.fillRect(pipe.x,0,pipe.width,pipe.top);
     ctx.fillRect(pipe.x,pipe.bottom,pipe.width,canvas.height);
 
-    ctx.fillStyle = "#145a32";
+    ctx.fillStyle = "#1b5e20";
     ctx.fillRect(pipe.x-5, pipe.top-20, pipe.width+10, 20);
     ctx.fillRect(pipe.x-5, pipe.bottom, pipe.width+10, 20);
   });
 }
 
+// ⚙️ LOGIC
 function updatePipes() {
   if (frame % 100 === 0) {
     let top = Math.random()*200+50;
@@ -176,7 +194,7 @@ function updatePipes() {
     if (!pipe.passed && pipe.x + pipe.width < bird.x) {
       score++;
       pipe.passed = true;
-      play(scoreSound); // 🔊 score
+      play(scoreSound);
     }
 
     if (
@@ -186,7 +204,7 @@ function updatePipes() {
        bird.y + bird.size > pipe.bottom)
     ) {
       gameState = "gameover";
-      play(hitSound); // 🔊 hit
+      play(hitSound);
     }
   });
 
@@ -211,6 +229,7 @@ function drawText(text,size,y){
   ctx.fillText(text, canvas.width/2, y);
 }
 
+// 🎮 LOOP
 function gameLoop() {
   drawSky();
   drawClouds();
@@ -245,13 +264,14 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
+// 🎮 INPUT
 function handleInput(){
-  startSounds(); // 🔥 unlock audio
+  startSounds();
 
   if(gameState==="start") gameState="playing";
   else if(gameState==="playing"){
     bird.velocity = bird.lift;
-    play(flapSound); // 🔊 flap
+    play(flapSound);
   }
   else location.reload();
 }
