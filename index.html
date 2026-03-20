@@ -4,7 +4,7 @@
   <title>Cumulus Lab - Flappy Bird</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { margin: 0; overflow: hidden; font-family: Arial; }
     canvas { display: block; }
   </style>
 </head>
@@ -21,9 +21,12 @@ canvas.height = window.innerHeight;
 
 let groundHeight = 100;
 
-// 🔊 SOUND SYSTEM
-let soundsStarted = false;
+// 🔥 YOUR CONFIG (ONLY CHANGE THIS LINE)
+const BIN_ID = "69bd6c4fb7ec241ddc882e70";
+const API_KEY = "$2a$10$5fefxOT7Rf8.kpvIDTQQpO7jp28IgjIkEFaq/G76B6GbG37WwFym6"; // 👈 paste your key here
 
+// 🔊 SOUND
+let soundsStarted = false;
 const flapSound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
 const scoreSound = new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
 const hitSound = new Audio("https://actions.google.com/sounds/v1/cartoon/concussive_hit_guitar_boing.ogg");
@@ -44,7 +47,7 @@ function play(sound) {
   sound.play().catch(()=>{});
 }
 
-// Bird
+// 🐤 BIRD
 let bird = {
   x: 80,
   y: canvas.height / 2,
@@ -58,52 +61,65 @@ let bird = {
 let pipes = [];
 let frame = 0;
 let score = 0;
-let highScore = localStorage.getItem("highScore") || 0;
 let gameState = "start";
 
-let bgX = 0;
-let groundX = 0;
+let leaderboard = [];
 
-// Clouds
-let clouds = [
-  {x: 100, y: 100},
-  {x: 300, y: 150},
-  {x: 600, y: 80}
-];
+// 🌍 LOAD SCORES
+async function loadScores() {
+  try {
+    let res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+      headers: { "X-Master-Key": API_KEY }
+    });
 
+    let data = await res.json();
+    leaderboard = data.record.scores || [];
+  } catch (e) {
+    leaderboard = [];
+  }
+}
+
+// 💾 SAVE SCORE
+async function saveScore(name, score) {
+  try {
+    let res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+      headers: { "X-Master-Key": API_KEY }
+    });
+
+    let data = await res.json();
+    let scores = data.record.scores || [];
+
+    scores.push({ name, score });
+    scores.sort((a, b) => b.score - a.score);
+    scores = scores.slice(0, 5);
+
+    await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": API_KEY
+      },
+      body: JSON.stringify({ scores })
+    });
+
+    leaderboard = scores;
+  } catch (e) {
+    console.log("Error saving score");
+  }
+}
+
+// 🎨 DRAW
 function drawSky() {
-  let gradient = ctx.createLinearGradient(0,0,0,canvas.height);
-  gradient.addColorStop(0, "#70c5ce");
-  gradient.addColorStop(1, "#dff6ff");
-  ctx.fillStyle = gradient;
+  let g = ctx.createLinearGradient(0,0,0,canvas.height);
+  g.addColorStop(0,"#70c5ce");
+  g.addColorStop(1,"#dff6ff");
+  ctx.fillStyle = g;
   ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
-function drawClouds() {
-  ctx.fillStyle = "white";
-  clouds.forEach(c => {
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, 20, 0, Math.PI*2);
-    ctx.arc(c.x+20, c.y, 20, 0, Math.PI*2);
-    ctx.arc(c.x+10, c.y-15, 20, 0, Math.PI*2);
-    ctx.fill();
-
-    c.x -= 0.5;
-    if (c.x < -50) c.x = canvas.width + 50;
-  });
-}
-
 function drawGround() {
-  groundX -= 3;
-  if (groundX <= -40) groundX = 0;
-
   ctx.fillStyle = "#ded895";
   ctx.fillRect(0, canvas.height-groundHeight, canvas.width, groundHeight);
-
-  ctx.fillStyle = "#c2b280";
-  for (let i = groundX; i < canvas.width; i += 40) {
-    ctx.fillRect(i, canvas.height-groundHeight, 20, 10);
-  }
 }
 
 function drawBird() {
@@ -120,125 +136,110 @@ function drawBird() {
   ctx.ellipse(-5, bird.flap, 12, 6, 0, 0, Math.PI*2);
   ctx.fill();
 
-  ctx.fillStyle = "white";
-  ctx.beginPath();
-  ctx.arc(5,-5,5,0,Math.PI*2);
-  ctx.fill();
-
-  ctx.fillStyle = "black";
-  ctx.beginPath();
-  ctx.arc(6,-5,2,0,Math.PI*2);
-  ctx.fill();
-
-  ctx.fillStyle = "orange";
-  ctx.beginPath();
-  ctx.moveTo(15,0);
-  ctx.lineTo(25,5);
-  ctx.lineTo(15,10);
-  ctx.fill();
-
   ctx.restore();
 }
 
 function drawPipes() {
-  pipes.forEach(pipe => {
-    let grad = ctx.createLinearGradient(pipe.x,0,pipe.x+pipe.width,0);
-    grad.addColorStop(0, "#2ecc71");
-    grad.addColorStop(1, "#27ae60");
-
-    ctx.fillStyle = grad;
-    ctx.fillRect(pipe.x,0,pipe.width,pipe.top);
-    ctx.fillRect(pipe.x,pipe.bottom,pipe.width,canvas.height);
-
-    ctx.fillStyle = "#145a32";
-    ctx.fillRect(pipe.x-5, pipe.top-20, pipe.width+10, 20);
-    ctx.fillRect(pipe.x-5, pipe.bottom, pipe.width+10, 20);
+  pipes.forEach(p=>{
+    ctx.fillStyle="#2ecc71";
+    ctx.fillRect(p.x,0,p.width,p.top);
+    ctx.fillRect(p.x,p.bottom,p.width,canvas.height);
   });
 }
 
 function updatePipes() {
-  if (frame % 100 === 0) {
-    let top = Math.random()*200+50;
-    let gap = 160;
+  if(frame%100===0){
+    let top=Math.random()*200+50;
+    let gap=160;
 
     pipes.push({
-      x: canvas.width,
-      width: 60,
-      top: top,
-      bottom: top + gap,
-      passed: false
+      x:canvas.width,
+      width:60,
+      top:top,
+      bottom:top+gap,
+      passed:false
     });
   }
 
-  pipes.forEach(pipe => {
-    pipe.x -= 3;
+  pipes.forEach(p=>{
+    p.x-=3;
 
-    if (!pipe.passed && pipe.x + pipe.width < bird.x) {
+    if(!p.passed && p.x+p.width<bird.x){
       score++;
-      pipe.passed = true;
-      play(scoreSound); // 🔊 score
+      p.passed=true;
+      play(scoreSound);
     }
 
-    if (
-      bird.x + bird.size > pipe.x &&
-      bird.x - bird.size < pipe.x + pipe.width &&
-      (bird.y - bird.size < pipe.top ||
-       bird.y + bird.size > pipe.bottom)
-    ) {
-      gameState = "gameover";
-      play(hitSound); // 🔊 hit
+    if(
+      bird.x+bird.size>p.x &&
+      bird.x-bird.size<p.x+p.width &&
+      (bird.y-bird.size<p.top || bird.y+bird.size>p.bottom)
+    ){
+      gameOver();
     }
   });
 
-  pipes = pipes.filter(p => p.x + p.width > 0);
+  pipes=pipes.filter(p=>p.x+p.width>0);
 }
 
 function updateBird() {
-  bird.velocity += bird.gravity;
-  bird.y += bird.velocity;
-  bird.flap = Math.sin(frame * 0.3) * 8;
+  bird.velocity+=bird.gravity;
+  bird.y+=bird.velocity;
+  bird.flap=Math.sin(frame*0.3)*8;
 
-  if (bird.y + bird.size > canvas.height-groundHeight) {
-    gameState = "gameover";
-    play(hitSound);
+  if(bird.y+bird.size>canvas.height-groundHeight){
+    gameOver();
   }
 }
 
-function drawText(text,size,y){
+function drawText(t,s,y){
   ctx.fillStyle="white";
-  ctx.font=size+"px Arial";
+  ctx.font=s+"px Arial";
   ctx.textAlign="center";
-  ctx.fillText(text, canvas.width/2, y);
+  ctx.fillText(t, canvas.width/2, y);
 }
 
-function gameLoop() {
+// 💀 GAME OVER
+function gameOver(){
+  if(gameState!=="gameover"){
+    gameState="gameover";
+    play(hitSound);
+
+    setTimeout(()=>{
+      let name=prompt("Enter your name:");
+      if(name) saveScore(name,score);
+    },300);
+  }
+}
+
+// 🎮 LOOP
+function gameLoop(){
   drawSky();
-  drawClouds();
   drawPipes();
   drawGround();
   drawBird();
 
-  if (gameState==="start"){
+  if(gameState==="start"){
     drawText("Tap to Start",40,canvas.height/2);
-    drawText("High Score: "+highScore,20,canvas.height/2+40);
   }
 
-  if (gameState==="playing"){
+  if(gameState==="playing"){
     updateBird();
     updatePipes();
     drawText("Score: "+score,20,40);
   }
 
-  if (gameState==="gameover"){
-    if(score>highScore){
-      highScore=score;
-      localStorage.setItem("highScore",highScore);
-    }
-
+  if(gameState==="gameover"){
     drawText("Game Over",40,canvas.height/2);
     drawText("Score: "+score,20,canvas.height/2+40);
-    drawText("High Score: "+highScore,20,canvas.height/2+70);
-    drawText("Tap to Restart",20,canvas.height/2+110);
+
+    let y=canvas.height/2+100;
+    leaderboard.forEach((s,i)=>{
+      drawText(`${i+1}. ${s.name}: ${s.score}`,18,y);
+      y+=25;
+    });
+
+    drawText("Tap to Restart",20,y+20);
   }
 
   frame++;
@@ -246,12 +247,15 @@ function gameLoop() {
 }
 
 function handleInput(){
-  startSounds(); // 🔥 unlock audio
+  startSounds();
 
-  if(gameState==="start") gameState="playing";
+  if(gameState==="start"){
+    loadScores();
+    gameState="playing";
+  }
   else if(gameState==="playing"){
-    bird.velocity = bird.lift;
-    play(flapSound); // 🔊 flap
+    bird.velocity=bird.lift;
+    play(flapSound);
   }
   else location.reload();
 }
