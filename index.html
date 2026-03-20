@@ -4,7 +4,7 @@
   <title>Cumulus Lab - Flappy Bird</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { margin: 0; overflow: hidden; font-family: Arial; }
+    body { margin: 0; overflow: hidden; }
     canvas { display: block; }
   </style>
 </head>
@@ -20,10 +20,6 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 let groundHeight = 100;
-
-// 🔥 YOUR CONFIG (ONLY CHANGE THIS LINE)
-const BIN_ID = "69bd6c4fb7ec241ddc882e70";
-const API_KEY = "$2a$10$5fefxOT7Rf8.kpvIDTQQpO7jp28IgjIkEFaq/G76B6GbG37WwFym6"; // 👈 paste your key here
 
 // 🔊 SOUND
 let soundsStarted = false;
@@ -63,50 +59,15 @@ let frame = 0;
 let score = 0;
 let gameState = "start";
 
-let leaderboard = [];
+// 🏆 LOCAL LEADERBOARD
+let leaderboard = JSON.parse(localStorage.getItem("leaderboard")) || [];
 
-// 🌍 LOAD SCORES
-async function loadScores() {
-  try {
-    let res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-      headers: { "X-Master-Key": API_KEY }
-    });
-
-    let data = await res.json();
-    leaderboard = data.record.scores || [];
-  } catch (e) {
-    leaderboard = [];
-  }
-}
-
-// 💾 SAVE SCORE
-async function saveScore(name, score) {
-  try {
-    let res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-      headers: { "X-Master-Key": API_KEY }
-    });
-
-    let data = await res.json();
-    let scores = data.record.scores || [];
-
-    scores.push({ name, score });
-    scores.sort((a, b) => b.score - a.score);
-    scores = scores.slice(0, 5);
-
-    await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Master-Key": API_KEY
-      },
-      body: JSON.stringify({ scores })
-    });
-
-    leaderboard = scores;
-  } catch (e) {
-    console.log("Error saving score");
-  }
-}
+// ☁️ CLOUDS
+let clouds = [
+  {x: 100, y: 100},
+  {x: 300, y: 150},
+  {x: 600, y: 80}
+];
 
 // 🎨 DRAW
 function drawSky() {
@@ -115,6 +76,20 @@ function drawSky() {
   g.addColorStop(1,"#dff6ff");
   ctx.fillStyle = g;
   ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function drawClouds() {
+  ctx.fillStyle = "white";
+  clouds.forEach(c => {
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 20, 0, Math.PI*2);
+    ctx.arc(c.x+20, c.y, 20, 0, Math.PI*2);
+    ctx.arc(c.x+10, c.y-15, 20, 0, Math.PI*2);
+    ctx.fill();
+
+    c.x -= 0.5;
+    if (c.x < -50) c.x = canvas.width + 50;
+  });
 }
 
 function drawGround() {
@@ -147,6 +122,7 @@ function drawPipes() {
   });
 }
 
+// ⚙️ GAME LOGIC
 function updatePipes() {
   if(frame%100===0){
     let top=Math.random()*200+50;
@@ -207,7 +183,12 @@ function gameOver(){
 
     setTimeout(()=>{
       let name=prompt("Enter your name:");
-      if(name) saveScore(name,score);
+      if(name){
+        leaderboard.push({name,score});
+        leaderboard.sort((a,b)=>b.score-a.score);
+        leaderboard=leaderboard.slice(0,5);
+        localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+      }
     },300);
   }
 }
@@ -215,6 +196,7 @@ function gameOver(){
 // 🎮 LOOP
 function gameLoop(){
   drawSky();
+  drawClouds();
   drawPipes();
   drawGround();
   drawBird();
@@ -246,11 +228,11 @@ function gameLoop(){
   requestAnimationFrame(gameLoop);
 }
 
+// 🎮 INPUT
 function handleInput(){
   startSounds();
 
   if(gameState==="start"){
-    loadScores();
     gameState="playing";
   }
   else if(gameState==="playing"){
