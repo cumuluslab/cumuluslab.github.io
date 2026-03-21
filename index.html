@@ -27,14 +27,20 @@ let soundsStarted = false;
 const flapSound = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a73467.mp3");
 const scoreSound = new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
 const hitSound = new Audio("https://actions.google.com/sounds/v1/cartoon/concussive_hit_guitar_boing.ogg");
-const bgMusic = new Audio("https://cdn.pixabay.com/audio/2023/03/27/audio_5f9c4c6e1a.mp3");
 
-bgMusic.loop = true;
-bgMusic.volume = 0.2;
+// 🎧 BACKGROUND MUSIC (UPGRADED)
+const menuMusic = new Audio("https://cdn.pixabay.com/audio/2022/10/25/audio_946c0c1f6b.mp3");
+const gameMusic = new Audio("https://cdn.pixabay.com/audio/2022/08/04/audio_2dde668d05.mp3");
+
+menuMusic.loop = true;
+gameMusic.loop = true;
+
+menuMusic.volume = 0.3;
+gameMusic.volume = 0.35;
 
 function startSounds() {
   if (!soundsStarted) {
-    bgMusic.play().catch(()=>{});
+    playMenuMusic();
     soundsStarted = true;
   }
 }
@@ -42,6 +48,19 @@ function startSounds() {
 function play(sound) {
   sound.currentTime = 0;
   sound.play().catch(()=>{});
+}
+
+// 🎵 MUSIC CONTROL
+function playMenuMusic() {
+  gameMusic.pause();
+  gameMusic.currentTime = 0;
+  menuMusic.play().catch(()=>{});
+}
+
+function playGameMusic() {
+  menuMusic.pause();
+  menuMusic.currentTime = 0;
+  gameMusic.play().catch(()=>{});
 }
 
 // 🐤 BIRD
@@ -246,6 +265,9 @@ function gameLoop() {
     updateBird();
     updatePipes();
     drawText("Score: "+score,20,40);
+
+    // 🎵 Dynamic intensity
+    gameMusic.playbackRate = 1 + Math.min(score * 0.01, 0.2);
   }
 
   if (gameState==="gameover"){
@@ -268,7 +290,10 @@ function gameLoop() {
 function handleInput(){
   startSounds();
 
-  if(gameState==="start") gameState="playing";
+  if(gameState==="start"){
+    gameState="playing";
+    playGameMusic(); // 🔥 switch music
+  }
   else if(gameState==="playing"){
     bird.velocity = bird.lift;
     play(flapSound);
